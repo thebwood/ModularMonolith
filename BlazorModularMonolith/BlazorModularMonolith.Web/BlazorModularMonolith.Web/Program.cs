@@ -1,4 +1,3 @@
-using BlazorModularMonolith.Web.Client.Pages;
 using BlazorModularMonolith.Web.Components;
 using BlazorModularMonolith.Web.Extensions;
 using BlazorModularMonolith.Web.Services;
