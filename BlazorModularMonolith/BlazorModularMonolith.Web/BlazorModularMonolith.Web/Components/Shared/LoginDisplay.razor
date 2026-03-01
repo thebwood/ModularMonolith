@@ -1,0 +1,120 @@
+@using BlazorModularMonolith.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="auth-display">
+    @if (_isAuthenticated && _userInfo != null)
+    {
+        <span class="user-info">
+            <span class="bi bi-person-circle"></span>
+            <span class="user-name">@_userInfo.Username</span>
+        </span>
+        <button class="btn btn-sm btn-outline-light" @onclick="HandleLogout">
+            <span class="bi bi-box-arrow-right"></span> Logout
+        </button>
+    }
+    else
+    {
+        <a href="/login" class="btn btn-sm btn-light">
+            <span class="bi bi-box-arrow-in-right"></span> Login
+        </a>
+        <a href="/register" class="btn btn-sm btn-outline-light">
+            <span class="bi bi-person-plus"></span> Register
+        </a>
+    }
+</div>
+
+<style>
+    .auth-display {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: white;
+        font-weight: 500;
+    }
+
+    .user-info .bi {
+        font-size: 1.25rem;
+    }
+
+    .user-name {
+        display: none;
+    }
+
+    @@media (min-width: 768px) {
+        .user-name {
+            display: inline;
+        }
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 0.25rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .btn-light {
+        background-color: white;
+        border-color: white;
+        color: #512bd4;
+    }
+
+    .btn-light:hover {
+        background-color: #f8f9fa;
+        border-color: #f8f9fa;
+        color: #512bd4;
+    }
+
+    .btn-outline-light {
+        color: white;
+        border-color: white;
+    }
+
+    .btn-outline-light:hover {
+        background-color: white;
+        color: #512bd4;
+    }
+</style>
+
+@code {
+    private bool _isAuthenticated;
+    private Models.UserInfo? _userInfo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthentication();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CheckAuthentication();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CheckAuthentication()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (_isAuthenticated)
+        {
+            _userInfo = await AuthService.GetCurrentUserAsync();
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

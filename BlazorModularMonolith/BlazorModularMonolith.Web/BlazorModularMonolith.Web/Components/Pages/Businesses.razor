@@ -8,6 +8,7 @@
 
 <PageTitle>Business Management</PageTitle>
 
+<AuthorizeView>
 <h1>Business Management</h1>
 
 @if (ViewModel.HasError)
@@ -331,6 +332,7 @@ else
         </div>
     }
 }
+</AuthorizeView>
 
 @code {
     protected override async Task OnInitializedAsync()

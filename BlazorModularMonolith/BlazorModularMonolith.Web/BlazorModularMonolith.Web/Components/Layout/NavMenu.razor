@@ -1,6 +1,10 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using BlazorModularMonolith.Web.Services
+@inject IAuthService AuthService
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Address Management</a>
+        <LoginDisplay />
     </div>
 </div>
 
@@ -14,17 +18,51 @@
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="people">
-                <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> People
-            </NavLink>
-        </div>
+        @if (_isAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="people">
+                    <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> People
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="businesses">
-                <span class="bi bi-building-nav-menu" aria-hidden="true"></span> Businesses
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="businesses">
+                    <span class="bi bi-building-nav-menu" aria-hidden="true"></span> Businesses
+                </NavLink>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-box-arrow-in-right-nav-menu" aria-hidden="true"></span> Login
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="register">
+                    <span class="bi bi-person-plus-nav-menu" aria-hidden="true"></span> Register
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
 
+@code {
+    private bool _isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            StateHasChanged();
+        }
+    }
+}

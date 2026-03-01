@@ -1,0 +1,152 @@
+@page "/login"
+@using BlazorModularMonolith.Web.Models
+@using BlazorModularMonolith.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <h3>Login</h3>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                @_errorMessage
+            </div>
+        }
+
+        <EditForm Model="@_loginModel" OnValidSubmit="@HandleLogin" FormName="loginForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <InputText id="username" @bind-Value="_loginModel.Username" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <InputText id="password" type="password" @bind-Value="_loginModel.Password" class="form-control" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span>Logging in...</span>
+                }
+                else
+                {
+                    <span>Login</span>
+                }
+            </button>
+        </EditForm>
+
+        <div class="login-hint">
+            <p><strong>Default credentials:</strong></p>
+            <ul>
+                <li>Admin: <code>admin</code> / <code>Admin123!</code></li>
+                <li>User: <code>user</code> / <code>User123!</code></li>
+            </ul>
+        </div>
+
+        <div class="mt-3 text-center">
+            <p>Don't have an account? <a href="/register">Register here</a></p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        padding: 2rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .login-card h3 {
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .login-hint {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    .login-hint ul {
+        margin-bottom: 0;
+    }
+
+    .alert {
+        margin-bottom: 1rem;
+    }
+</style>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel _loginModel { get; set; } = new();
+
+    private string _errorMessage = string.Empty;
+    private bool _isLoading = false;
+
+    private async Task HandleLogin()
+    {
+        _isLoading = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"Attempting login with username: '{_loginModel.Username}'");
+            var userInfo = await AuthService.LoginAsync(_loginModel);
+
+            if (userInfo != null)
+            {
+                System.Diagnostics.Debug.WriteLine("Login successful!");
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("Login returned null");
+                _errorMessage = "Invalid username or password. Please check the browser console (F12) and Output window for detailed error messages.";
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Login exception: {ex.Message}");
+            _errorMessage = $"Login failed: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

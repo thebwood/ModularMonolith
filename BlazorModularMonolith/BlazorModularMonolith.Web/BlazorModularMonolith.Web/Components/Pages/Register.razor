@@ -1,0 +1,163 @@
+@page "/register"
+@using BlazorModularMonolith.Web.Models
+@using BlazorModularMonolith.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <h3>Create Account</h3>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                @_errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <div class="alert alert-success" role="alert">
+                @_successMessage
+            </div>
+        }
+
+        <EditForm Model="@_registerModel" OnValidSubmit="@HandleRegister" FormName="registerForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <InputText id="username" @bind-Value="_registerModel.Username" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <InputText id="email" type="email" @bind-Value="_registerModel.Email" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <InputText id="password" type="password" @bind-Value="_registerModel.Password" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password:</label>
+                <InputText id="confirmPassword" type="password" @bind-Value="_registerModel.ConfirmPassword" class="form-control" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span>Creating account...</span>
+                }
+                else
+                {
+                    <span>Register</span>
+                }
+            </button>
+        </EditForm>
+
+        <div class="mt-3 text-center">
+            <p>Already have an account? <a href="/login">Login here</a></p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        padding: 2rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .login-card h3 {
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .alert {
+        margin-bottom: 1rem;
+    }
+</style>
+
+@code {
+    [SupplyParameterFromForm]
+    private RegisterModel _registerModel { get; set; } = new();
+
+    private string _errorMessage = string.Empty;
+    private string _successMessage = string.Empty;
+    private bool _isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        _isLoading = true;
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
+
+        try
+        {
+            if (_registerModel.Password != _registerModel.ConfirmPassword)
+            {
+                _errorMessage = "Passwords do not match";
+                return;
+            }
+
+            var userInfo = await AuthService.RegisterAsync(_registerModel);
+
+            if (userInfo != null)
+            {
+                _successMessage = "Account created successfully! Redirecting...";
+                await Task.Delay(1500);
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                _errorMessage = "Username already exists or registration failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Registration failed: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public class RegisterModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

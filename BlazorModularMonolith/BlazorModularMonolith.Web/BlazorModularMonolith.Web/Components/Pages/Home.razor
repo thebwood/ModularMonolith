@@ -1,7 +1,228 @@
 ﻿@page "/"
+@using BlazorModularMonolith.Web.Services
+@inject IAuthService AuthService
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="home-container">
+    @if (_isAuthenticated && _userInfo != null)
+    {
+        <div class="welcome-card">
+            <h1>Welcome back, @_userInfo.Username! 👋</h1>
+            <p class="lead">You're successfully logged in to the Address Management System.</p>
 
-Welcome to your new app.
+            <div class="feature-cards">
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <h3>People</h3>
+                    <p>Manage people and their contact information</p>
+                    <a href="/people" class="btn btn-primary">Go to People</a>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🏢</div>
+                    <h3>Businesses</h3>
+                    <p>Manage businesses and their information</p>
+                    <a href="/businesses" class="btn btn-primary">Go to Businesses</a>
+                </div>
+            </div>
+
+            <div class="user-info">
+                <p><strong>Email:</strong> @_userInfo.Email</p>
+                <p><strong>Roles:</strong> @string.Join(", ", _userInfo.Roles)</p>
+                <p><strong>Session expires:</strong> @_userInfo.ExpiresAt.ToLocalTime().ToString("g")</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="welcome-card">
+            <h1>Welcome to Address Management System! 🎉</h1>
+            <p class="lead">A modular monolith application for managing addresses, people, and businesses.</p>
+
+            <div class="auth-section">
+                <h2>Get Started</h2>
+                <p>Please login or create an account to access the application.</p>
+
+                <div class="auth-buttons">
+                    <a href="/login" class="btn btn-primary btn-lg">
+                        <span class="bi bi-box-arrow-in-right"></span> Login
+                    </a>
+                    <a href="/register" class="btn btn-outline-primary btn-lg">
+                        <span class="bi bi-person-plus"></span> Register
+                    </a>
+                </div>
+
+                <div class="demo-credentials">
+                    <h4>Demo Credentials</h4>
+                    <p>Try these accounts to test the application:</p>
+                    <ul>
+                        <li><strong>Admin:</strong> username: <code>admin</code>, password: <code>Admin123!</code></li>
+                        <li><strong>User:</strong> username: <code>user</code>, password: <code>User123!</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="features-section">
+                <h3>Features</h3>
+                <ul class="features-list">
+                    <li>✅ Manage people with multiple addresses</li>
+                    <li>✅ Manage businesses and their locations</li>
+                    <li>✅ Secure authentication with JWT tokens</li>
+                    <li>✅ Real-time validation and error handling</li>
+                    <li>✅ Modern Blazor Server UI</li>
+                </ul>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .home-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .welcome-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .welcome-card h1 {
+        color: #512bd4;
+        margin-bottom: 1rem;
+    }
+
+    .lead {
+        font-size: 1.25rem;
+        color: #6c757d;
+        margin-bottom: 2rem;
+    }
+
+    .auth-section {
+        text-align: center;
+        padding: 2rem 0;
+    }
+
+    .auth-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 2rem;
+        font-size: 1.125rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .demo-credentials {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin: 2rem auto;
+        max-width: 600px;
+        text-align: left;
+    }
+
+    .demo-credentials h4 {
+        margin-top: 0;
+        color: #512bd4;
+    }
+
+    .demo-credentials ul {
+        margin-bottom: 0;
+    }
+
+    .demo-credentials code {
+        background: #e9ecef;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+    }
+
+    .features-section {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .features-list {
+        list-style: none;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .features-list li {
+        padding: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .feature-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin: 2rem 0;
+    }
+
+    .feature-card {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 2rem;
+        text-align: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+
+    .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+        color: #512bd4;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+    }
+
+    .user-info {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .user-info p {
+        margin: 0.5rem 0;
+    }
+</style>
+
+@code {
+    private bool _isAuthenticated;
+    private Models.UserInfo? _userInfo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (_isAuthenticated)
+        {
+            _userInfo = await AuthService.GetCurrentUserAsync();
+        }
+    }
+}

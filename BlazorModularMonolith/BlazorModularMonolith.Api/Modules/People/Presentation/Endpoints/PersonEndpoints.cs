@@ -10,7 +10,8 @@ public static class PersonEndpoints
     {
         var group = endpoints.MapGroup("/api/v{version:apiVersion}/people")
             .WithTags("People")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllPeople)
             .WithName("GetAllPeople")

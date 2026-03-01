@@ -11,7 +11,8 @@ public static class AddressEndpoints
     {
         var group = endpoints.MapGroup("/api/v{version:apiVersion}/addresses")
             .WithTags("Addresses")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllAddresses)
             .WithName("GetAllAddresses")

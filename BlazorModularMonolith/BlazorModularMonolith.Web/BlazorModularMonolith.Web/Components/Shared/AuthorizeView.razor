@@ -1,0 +1,31 @@
+@using BlazorModularMonolith.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+@if (_isAuthenticated)
+{
+    @ChildContent
+}
+else if (_isLoading)
+{
+    <p>Loading...</p>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool _isAuthenticated;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        _isLoading = false;
+
+        if (!_isAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

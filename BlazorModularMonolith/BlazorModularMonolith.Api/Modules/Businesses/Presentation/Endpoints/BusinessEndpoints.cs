@@ -11,7 +11,8 @@ public static class BusinessEndpoints
     {
         var group = endpoints.MapGroup("/api/v{version:apiVersion}/businesses")
             .WithTags("Businesses")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireAuthorization();
 
         group.MapGet("/", GetAllBusinesses)
             .WithName("GetAllBusinesses")
