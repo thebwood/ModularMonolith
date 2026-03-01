@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API: Launch",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-api",
+      "program": "${workspaceFolder}/BlazorModularMonolith.Api/bin/Debug/net10.0/BlazorModularMonolith.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/BlazorModularMonolith.Api",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "sourceFileMap": {
+        "/Views": "${workspaceFolder}/Views"
+      }
+    },
+    {
+      "name": "Web: Launch",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-web",
+      "program": "${workspaceFolder}/BlazorModularMonolith.Web/BlazorModularMonolith.Web/bin/Debug/net10.0/BlazorModularMonolith.Web.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/BlazorModularMonolith.Web/BlazorModularMonolith.Web",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "sourceFileMap": {
+        "/Views": "${workspaceFolder}/Views"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "API + Web: Launch Both",
+      "configurations": ["API: Launch", "Web: Launch"],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Launch",
+        "order": 1
+      }
+    }
+  ]
+}

@@ -1,3 +1,7 @@
 <Solution>
+  <Folder Name="/BlazorModularMonolith.Web/">
+    <Project Path="BlazorModularMonolith.Web/BlazorModularMonolith.Web.Client/BlazorModularMonolith.Web.Client.csproj" />
+    <Project Path="BlazorModularMonolith.Web/BlazorModularMonolith.Web/BlazorModularMonolith.Web.csproj" />
+  </Folder>
   <Project Path="BlazorModularMonolith.Api/BlazorModularMonolith.Api.csproj" />
 </Solution>
