@@ -62,7 +62,7 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<UserInfo?> RegisterAsync(dynamic registerModel)
+    public async Task<UserInfo?> RegisterAsync(RegisterModel registerModel)
     {
         try
         {
