@@ -51,6 +51,13 @@ builder.Services.AddHttpClient<IBusinessApiService, BusinessApiService>(client =
 })
 .AddHttpMessageHandler<AuthenticationDelegatingHandler>();
 
+builder.Services.AddHttpClient<IUserApiService, UserApiService>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.AddHttpMessageHandler<AuthenticationDelegatingHandler>();
+
 // Register ViewModels
 builder.Services.AddScoped<PeopleViewModel>();
 builder.Services.AddScoped<BusinessesViewModel>();

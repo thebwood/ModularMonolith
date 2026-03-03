@@ -154,6 +154,12 @@ public class AuthService : IAuthService
         return user != null;
     }
 
+    public async Task<bool> IsInRoleAsync(string role)
+    {
+        var user = await GetCurrentUserAsync();
+        return user?.Roles.Contains(role, StringComparer.OrdinalIgnoreCase) ?? false;
+    }
+
     public string? GetToken()
     {
         return _currentUser?.Token;

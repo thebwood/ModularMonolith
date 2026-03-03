@@ -11,6 +11,7 @@ public static class AuthenticationModule
     {
         services.AddScoped<IUserRepository, FileUserRepository>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IUserManagementService, UserManagementService>();
 
         return services;
     }

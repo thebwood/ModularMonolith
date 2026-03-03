@@ -114,6 +114,21 @@ public class FileUserRepository : IUserRepository
         return await ReadUsersAsync();
     }
 
+    public async Task DeleteAsync(Guid id)
+    {
+        await _semaphore.WaitAsync();
+        try
+        {
+            var users = await ReadUsersAsync();
+            users.RemoveAll(u => u.Id == id);
+            await WriteUsersAsync(users);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
     private async Task<List<User>> ReadUsersAsync()
     {
         if (!File.Exists(_filePath))

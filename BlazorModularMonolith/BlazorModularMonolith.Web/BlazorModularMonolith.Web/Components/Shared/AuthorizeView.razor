@@ -4,23 +4,42 @@
 
 @if (_isAuthenticated)
 {
-    @ChildContent
+    @if (_hasRole)
+    {
+        @ChildContent
+    }
+    else
+    {
+        <div class="alert alert-warning mt-3">
+            <i class="bi bi-shield-exclamation me-2"></i>
+            You do not have permission to access this section.
+        </div>
+    }
 }
 else if (_isLoading)
 {
-    <p>Loading...</p>
+    <div class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
 }
 
 @code {
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    [Parameter]
+    public string? Role { get; set; }
+
     private bool _isAuthenticated;
+    private bool _hasRole;
     private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        _hasRole = Role is null || await AuthService.IsInRoleAsync(Role);
         _isLoading = false;
 
         if (!_isAuthenticated)

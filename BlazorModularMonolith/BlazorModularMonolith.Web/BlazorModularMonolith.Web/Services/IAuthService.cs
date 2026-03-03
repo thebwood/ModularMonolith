@@ -9,5 +9,6 @@ public interface IAuthService
     Task LogoutAsync();
     Task<UserInfo?> GetCurrentUserAsync();
     Task<bool> IsAuthenticatedAsync();
+    Task<bool> IsInRoleAsync(string role);
     string? GetToken();
 }
