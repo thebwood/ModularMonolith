@@ -1,12 +1,13 @@
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 
 namespace BlazorModularMonolith.Web.Services;
 
 public interface IUserApiService
 {
-    Task<List<UserModel>> GetAllUsersAsync();
-    Task<UserModel?> GetUserByIdAsync(Guid id);
-    Task<UserModel?> CreateUserAsync(CreateUserModel model);
-    Task<UserModel?> UpdateUserAsync(Guid id, UpdateUserModel model);
-    Task<bool> DeleteUserAsync(Guid id);
+    Task<Result<List<UserModel>>> GetAllUsersAsync();
+    Task<Result<UserModel>> GetUserByIdAsync(Guid id);
+    Task<Result<UserModel>> CreateUserAsync(CreateUserModel model);
+    Task<Result<UserModel>> UpdateUserAsync(Guid id, UpdateUserModel model);
+    Task<Result> DeleteUserAsync(Guid id);
 }

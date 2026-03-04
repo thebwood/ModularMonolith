@@ -5,6 +5,7 @@ using System.Text;
 using BlazorModularMonolith.Api.Modules.Authentication.Application.DTOs;
 using BlazorModularMonolith.Api.Modules.Authentication.Domain.Entities;
 using BlazorModularMonolith.Api.Modules.Authentication.Domain.Repositories;
+using BlazorModularMonolith.Api.Shared.Common;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BlazorModularMonolith.Api.Modules.Authentication.Application.Services;
@@ -20,15 +21,15 @@ public class AuthenticationService : IAuthenticationService
         _configuration = configuration;
     }
 
-    public async Task<LoginResponse?> LoginAsync(LoginRequest request)
+    public async Task<Result<LoginResponse>> LoginAsync(LoginRequest request)
     {
         var user = await _userRepository.GetByUsernameAsync(request.Username);
-        
+
         if (user == null || !user.IsActive)
-            return null;
+            return Result<LoginResponse>.Failure("Invalid username or password.");
 
         if (!VerifyPassword(request.Password, user.PasswordHash))
-            return null;
+            return Result<LoginResponse>.Failure("Invalid username or password.");
 
         user.LastLoginAt = DateTime.UtcNow;
         await _userRepository.UpdateAsync(user);
@@ -37,14 +38,14 @@ public class AuthenticationService : IAuthenticationService
         var expiresAt = DateTime.UtcNow.AddHours(
             _configuration.GetValue<int>("JwtSettings:ExpirationHours"));
 
-        return new LoginResponse(token, user.Username, user.Email, user.Roles, expiresAt);
+        return Result<LoginResponse>.Success(new LoginResponse(token, user.Username, user.Email, user.Roles, expiresAt));
     }
 
-    public async Task<LoginResponse?> RegisterAsync(RegisterRequest request)
+    public async Task<Result<LoginResponse>> RegisterAsync(RegisterRequest request)
     {
         var existingUser = await _userRepository.GetByUsernameAsync(request.Username);
         if (existingUser != null)
-            return null;
+            return Result<LoginResponse>.Failure("Username already exists.");
 
         var user = new User
         {
@@ -63,7 +64,7 @@ public class AuthenticationService : IAuthenticationService
         var expiresAt = DateTime.UtcNow.AddHours(
             _configuration.GetValue<int>("JwtSettings:ExpirationHours"));
 
-        return new LoginResponse(token, user.Username, user.Email, user.Roles, expiresAt);
+        return Result<LoginResponse>.Success(new LoginResponse(token, user.Username, user.Email, user.Roles, expiresAt));
     }
 
     public Task<bool> ValidateTokenAsync(string token)

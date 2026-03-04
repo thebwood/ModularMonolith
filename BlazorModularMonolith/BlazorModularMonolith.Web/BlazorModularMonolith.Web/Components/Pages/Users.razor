@@ -1,5 +1,6 @@
 @page "/users"
 @rendermode InteractiveServer
+@using BlazorModularMonolith.Web.Common
 @using BlazorModularMonolith.Web.Models
 @using BlazorModularMonolith.Web.Services
 @inject IUserApiService UserService
@@ -287,7 +288,11 @@
     private async Task LoadUsers()
     {
         _isLoading = true;
-        _users = await UserService.GetAllUsersAsync();
+        var result = await UserService.GetAllUsersAsync();
+        if (result.IsSuccess)
+            _users = result.Value!;
+        else
+            _errorMessage = result.Error!;
         _isLoading = false;
     }
 
@@ -322,15 +327,15 @@
         var result = await UserService.CreateUserAsync(_createModel);
         _isSaving = false;
 
-        if (result is not null)
+        if (result.IsSuccess)
         {
-            _successMessage = $"User '{result.Username}' created successfully.";
+            _successMessage = $"User '{result.Value!.Username}' created successfully.";
             CloseModals();
             await LoadUsers();
         }
         else
         {
-            _errorMessage = "Failed to create user. Username may already exist.";
+            _errorMessage = result.Error!;
         }
     }
 
@@ -341,7 +346,7 @@
         var result = await UserService.UpdateUserAsync(_editingUserId, _editModel);
         _isSaving = false;
 
-        if (result is not null)
+        if (result.IsSuccess)
         {
             _successMessage = $"User '{_editingUsername}' updated successfully.";
             CloseModals();
@@ -349,7 +354,7 @@
         }
         else
         {
-            _errorMessage = "Failed to update user.";
+            _errorMessage = result.Error!;
         }
     }
 
@@ -361,15 +366,15 @@
         if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Delete user '{user.Username}'? This cannot be undone."))
             return;
 
-        var success = await UserService.DeleteUserAsync(id);
-        if (success)
+        var result = await UserService.DeleteUserAsync(id);
+        if (result.IsSuccess)
         {
             _successMessage = $"User '{user.Username}' deleted.";
             await LoadUsers();
         }
         else
         {
-            _errorMessage = "Failed to delete user.";
+            _errorMessage = result.Error!;
         }
     }
 

@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 
 namespace BlazorModularMonolith.Web.Services;
@@ -12,31 +14,35 @@ public class UserApiService : IUserApiService
         _httpClient = httpClient;
     }
 
-    public async Task<List<UserModel>> GetAllUsersAsync()
+    public async Task<Result<List<UserModel>>> GetAllUsersAsync()
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<List<UserModel>>("/api/v1/users/") ?? [];
+            var users = await _httpClient.GetFromJsonAsync<List<UserModel>>("/api/v1/users/") ?? [];
+            return Result<List<UserModel>>.Success(users);
         }
-        catch
+        catch (Exception ex)
         {
-            return [];
+            return Result<List<UserModel>>.Failure($"Failed to load users: {ex.Message}");
         }
     }
 
-    public async Task<UserModel?> GetUserByIdAsync(Guid id)
+    public async Task<Result<UserModel>> GetUserByIdAsync(Guid id)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<UserModel>($"/api/v1/users/{id}");
+            var user = await _httpClient.GetFromJsonAsync<UserModel>($"/api/v1/users/{id}");
+            return user is not null
+                ? Result<UserModel>.Success(user)
+                : Result<UserModel>.Failure("User not found.");
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return Result<UserModel>.Failure($"Failed to load user: {ex.Message}");
         }
     }
 
-    public async Task<UserModel?> CreateUserAsync(CreateUserModel model)
+    public async Task<Result<UserModel>> CreateUserAsync(CreateUserModel model)
     {
         try
         {
@@ -47,17 +53,25 @@ public class UserApiService : IUserApiService
                 email = model.Email,
                 roles = model.Roles
             });
-            return response.IsSuccessStatusCode
-                ? await response.Content.ReadFromJsonAsync<UserModel>()
-                : null;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<UserModel>.Failure(error ?? "Failed to create user.");
+            }
+
+            var user = await response.Content.ReadFromJsonAsync<UserModel>();
+            return user is not null
+                ? Result<UserModel>.Success(user)
+                : Result<UserModel>.Failure("Invalid server response.");
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return Result<UserModel>.Failure($"Failed to create user: {ex.Message}");
         }
     }
 
-    public async Task<UserModel?> UpdateUserAsync(Guid id, UpdateUserModel model)
+    public async Task<Result<UserModel>> UpdateUserAsync(Guid id, UpdateUserModel model)
     {
         try
         {
@@ -67,26 +81,52 @@ public class UserApiService : IUserApiService
                 roles = model.Roles,
                 isActive = model.IsActive
             });
-            return response.IsSuccessStatusCode
-                ? await response.Content.ReadFromJsonAsync<UserModel>()
-                : null;
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<UserModel>.Failure(error ?? "Failed to update user.");
+            }
+
+            var user = await response.Content.ReadFromJsonAsync<UserModel>();
+            return user is not null
+                ? Result<UserModel>.Success(user)
+                : Result<UserModel>.Failure("Invalid server response.");
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return Result<UserModel>.Failure($"Failed to update user: {ex.Message}");
         }
     }
 
-    public async Task<bool> DeleteUserAsync(Guid id)
+    public async Task<Result> DeleteUserAsync(Guid id)
     {
         try
         {
             var response = await _httpClient.DeleteAsync($"/api/v1/users/{id}");
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result.Failure(error ?? "Failed to delete user.");
+            }
+
+            return Result.Success();
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            return Result.Failure($"Failed to delete user: {ex.Message}");
         }
+    }
+
+    private static async Task<string?> TryReadErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            if (body.TryGetProperty("message", out var msg))
+                return msg.GetString();
+        }
+        catch { }
+        return null;
     }
 }

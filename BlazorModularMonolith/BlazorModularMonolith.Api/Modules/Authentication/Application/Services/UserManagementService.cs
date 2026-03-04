@@ -3,6 +3,7 @@ using System.Text;
 using BlazorModularMonolith.Api.Modules.Authentication.Application.DTOs;
 using BlazorModularMonolith.Api.Modules.Authentication.Domain.Entities;
 using BlazorModularMonolith.Api.Modules.Authentication.Domain.Repositories;
+using BlazorModularMonolith.Api.Shared.Common;
 
 namespace BlazorModularMonolith.Api.Modules.Authentication.Application.Services;
 
@@ -15,23 +16,25 @@ public class UserManagementService : IUserManagementService
         _userRepository = userRepository;
     }
 
-    public async Task<IEnumerable<UserDto>> GetAllUsersAsync()
+    public async Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync()
     {
         var users = await _userRepository.GetAllAsync();
-        return users.Select(ToDto);
+        return Result<IEnumerable<UserDto>>.Success(users.Select(ToDto));
     }
 
-    public async Task<UserDto?> GetUserByIdAsync(Guid id)
+    public async Task<Result<UserDto>> GetUserByIdAsync(Guid id)
     {
         var user = await _userRepository.GetByIdAsync(id);
-        return user is null ? null : ToDto(user);
+        return user is null
+            ? Result<UserDto>.Failure($"User with ID '{id}' not found.")
+            : Result<UserDto>.Success(ToDto(user));
     }
 
-    public async Task<UserDto?> CreateUserAsync(CreateUserRequest request)
+    public async Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request)
     {
         var existing = await _userRepository.GetByUsernameAsync(request.Username);
         if (existing is not null)
-            return null;
+            return Result<UserDto>.Failure("Username already exists.");
 
         var user = new User
         {
@@ -45,31 +48,31 @@ public class UserManagementService : IUserManagementService
         };
 
         await _userRepository.CreateAsync(user);
-        return ToDto(user);
+        return Result<UserDto>.Success(ToDto(user));
     }
 
-    public async Task<UserDto?> UpdateUserAsync(Guid id, UpdateUserRequest request)
+    public async Task<Result<UserDto>> UpdateUserAsync(Guid id, UpdateUserRequest request)
     {
         var user = await _userRepository.GetByIdAsync(id);
         if (user is null)
-            return null;
+            return Result<UserDto>.Failure($"User with ID '{id}' not found.");
 
         user.Email = request.Email;
         user.Roles = request.Roles;
         user.IsActive = request.IsActive;
 
         await _userRepository.UpdateAsync(user);
-        return ToDto(user);
+        return Result<UserDto>.Success(ToDto(user));
     }
 
-    public async Task<bool> DeleteUserAsync(Guid id)
+    public async Task<Result> DeleteUserAsync(Guid id)
     {
         var user = await _userRepository.GetByIdAsync(id);
         if (user is null)
-            return false;
+            return Result.Failure($"User with ID '{id}' not found.");
 
         await _userRepository.DeleteAsync(id);
-        return true;
+        return Result.Success();
     }
 
     private static UserDto ToDto(User user) =>

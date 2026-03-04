@@ -1,6 +1,7 @@
 using BlazorModularMonolith.Api.Modules.Businesses.Application.DTOs;
 using BlazorModularMonolith.Api.Modules.Businesses.Domain.Entities;
 using BlazorModularMonolith.Api.Modules.Businesses.Domain.Repositories;
+using BlazorModularMonolith.Api.Shared.Common;
 
 namespace BlazorModularMonolith.Api.Modules.Businesses.Application.Services;
 
@@ -15,38 +16,42 @@ public class BusinessService : IBusinessService
         _logger = logger;
     }
 
-    public async Task<BusinessDto?> GetBusinessAsync(Guid id)
+    public async Task<Result<BusinessDto>> GetBusinessAsync(Guid id)
     {
         _logger.LogInformation("Retrieving business with ID: {BusinessId}", id);
         var business = await _repository.GetByIdAsync(id);
-        return business != null ? MapToDto(business) : null;
+        return business is not null
+            ? Result<BusinessDto>.Success(MapToDto(business))
+            : Result<BusinessDto>.Failure($"Business with ID '{id}' not found.");
     }
 
-    public async Task<IEnumerable<BusinessDto>> GetAllBusinessesAsync()
+    public async Task<Result<IEnumerable<BusinessDto>>> GetAllBusinessesAsync()
     {
         _logger.LogInformation("Retrieving all businesses");
         var businesses = await _repository.GetAllAsync();
-        return businesses.Select(MapToDto);
+        return Result<IEnumerable<BusinessDto>>.Success(businesses.Select(MapToDto));
     }
 
-    public async Task<BusinessDto?> GetBusinessByTaxIdAsync(string taxId)
+    public async Task<Result<BusinessDto>> GetBusinessByTaxIdAsync(string taxId)
     {
         _logger.LogInformation("Retrieving business with Tax ID: {TaxId}", taxId);
         var business = await _repository.GetByTaxIdAsync(taxId);
-        return business != null ? MapToDto(business) : null;
+        return business is not null
+            ? Result<BusinessDto>.Success(MapToDto(business))
+            : Result<BusinessDto>.Failure($"Business with Tax ID '{taxId}' not found.");
     }
 
-    public async Task<IEnumerable<BusinessDto>> GetBusinessesByTypeAsync(BusinessType type)
+    public async Task<Result<IEnumerable<BusinessDto>>> GetBusinessesByTypeAsync(BusinessType type)
     {
         _logger.LogInformation("Retrieving businesses of type: {BusinessType}", type);
         var businesses = await _repository.GetByTypeAsync(type);
-        return businesses.Select(MapToDto);
+        return Result<IEnumerable<BusinessDto>>.Success(businesses.Select(MapToDto));
     }
 
-    public async Task<BusinessDto> CreateBusinessAsync(CreateBusinessRequest request)
+    public async Task<Result<BusinessDto>> CreateBusinessAsync(CreateBusinessRequest request)
     {
         _logger.LogInformation("Creating new business: {Name}", request.Name);
-        
+
         var business = new Business
         {
             Id = Guid.NewGuid(),
@@ -60,18 +65,18 @@ public class BusinessService : IBusinessService
         };
 
         var created = await _repository.CreateAsync(business);
-        return MapToDto(created);
+        return Result<BusinessDto>.Success(MapToDto(created));
     }
 
-    public async Task<BusinessDto?> UpdateBusinessAsync(Guid id, UpdateBusinessRequest request)
+    public async Task<Result<BusinessDto>> UpdateBusinessAsync(Guid id, UpdateBusinessRequest request)
     {
         _logger.LogInformation("Updating business with ID: {BusinessId}", id);
-        
+
         var existing = await _repository.GetByIdAsync(id);
         if (existing == null)
         {
             _logger.LogWarning("Business with ID: {BusinessId} not found", id);
-            return null;
+            return Result<BusinessDto>.Failure($"Business with ID '{id}' not found.");
         }
 
         existing.Name = request.Name;
@@ -83,24 +88,29 @@ public class BusinessService : IBusinessService
         existing.UpdatedAt = DateTime.UtcNow;
 
         var updated = await _repository.UpdateAsync(existing);
-        return updated != null ? MapToDto(updated) : null;
+        return updated is not null
+            ? Result<BusinessDto>.Success(MapToDto(updated))
+            : Result<BusinessDto>.Failure($"Business with ID '{id}' not found.");
     }
 
-    public async Task<bool> DeleteBusinessAsync(Guid id)
+    public async Task<Result> DeleteBusinessAsync(Guid id)
     {
         _logger.LogInformation("Deleting business with ID: {BusinessId}", id);
-        return await _repository.DeleteAsync(id);
+        var deleted = await _repository.DeleteAsync(id);
+        return deleted
+            ? Result.Success()
+            : Result.Failure($"Business with ID '{id}' not found.");
     }
 
-    public async Task<BusinessDto?> AddAddressToBusinessAsync(Guid businessId, Guid addressId)
+    public async Task<Result<BusinessDto>> AddAddressToBusinessAsync(Guid businessId, Guid addressId)
     {
         _logger.LogInformation("Adding address {AddressId} to business {BusinessId}", addressId, businessId);
-        
+
         var business = await _repository.GetByIdAsync(businessId);
         if (business == null)
         {
             _logger.LogWarning("Business with ID: {BusinessId} not found", businessId);
-            return null;
+            return Result<BusinessDto>.Failure($"Business with ID '{businessId}' not found.");
         }
 
         if (!business.AddressIds.Contains(addressId))
@@ -110,25 +120,25 @@ public class BusinessService : IBusinessService
             await _repository.UpdateAsync(business);
         }
 
-        return MapToDto(business);
+        return Result<BusinessDto>.Success(MapToDto(business));
     }
 
-    public async Task<BusinessDto?> RemoveAddressFromBusinessAsync(Guid businessId, Guid addressId)
+    public async Task<Result<BusinessDto>> RemoveAddressFromBusinessAsync(Guid businessId, Guid addressId)
     {
         _logger.LogInformation("Removing address {AddressId} from business {BusinessId}", addressId, businessId);
-        
+
         var business = await _repository.GetByIdAsync(businessId);
         if (business == null)
         {
             _logger.LogWarning("Business with ID: {BusinessId} not found", businessId);
-            return null;
+            return Result<BusinessDto>.Failure($"Business with ID '{businessId}' not found.");
         }
 
         business.AddressIds.Remove(addressId);
         business.UpdatedAt = DateTime.UtcNow;
         await _repository.UpdateAsync(business);
 
-        return MapToDto(business);
+        return Result<BusinessDto>.Success(MapToDto(business));
     }
 
     private static BusinessDto MapToDto(Business business) => new(

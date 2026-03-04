@@ -1,6 +1,7 @@
 using BlazorModularMonolith.Api.Modules.Addresses.Application.DTOs;
 using BlazorModularMonolith.Api.Modules.Addresses.Domain.Entities;
 using BlazorModularMonolith.Api.Modules.Addresses.Domain.Repositories;
+using BlazorModularMonolith.Api.Shared.Common;
 
 namespace BlazorModularMonolith.Api.Modules.Addresses.Application.Services;
 
@@ -15,38 +16,40 @@ public class AddressService : IAddressService
         _logger = logger;
     }
 
-    public async Task<AddressDto?> GetAddressAsync(Guid id)
+    public async Task<Result<AddressDto>> GetAddressAsync(Guid id)
     {
         _logger.LogInformation("Retrieving address with ID: {AddressId}", id);
         var address = await _repository.GetByIdAsync(id);
-        return address != null ? MapToDto(address) : null;
+        return address is not null
+            ? Result<AddressDto>.Success(MapToDto(address))
+            : Result<AddressDto>.Failure($"Address with ID '{id}' not found.");
     }
 
-    public async Task<IEnumerable<AddressDto>> GetAllAddressesAsync()
+    public async Task<Result<IEnumerable<AddressDto>>> GetAllAddressesAsync()
     {
         _logger.LogInformation("Retrieving all addresses");
         var addresses = await _repository.GetAllAsync();
-        return addresses.Select(MapToDto);
+        return Result<IEnumerable<AddressDto>>.Success(addresses.Select(MapToDto));
     }
 
-    public async Task<IEnumerable<AddressDto>> GetAddressesByOwnerAsync(Guid ownerId)
+    public async Task<Result<IEnumerable<AddressDto>>> GetAddressesByOwnerAsync(Guid ownerId)
     {
         _logger.LogInformation("Retrieving addresses for owner: {OwnerId}", ownerId);
         var addresses = await _repository.GetByOwnerIdAsync(ownerId);
-        return addresses.Select(MapToDto);
+        return Result<IEnumerable<AddressDto>>.Success(addresses.Select(MapToDto));
     }
 
-    public async Task<IEnumerable<AddressDto>> GetAddressesByTypeAsync(AddressType type)
+    public async Task<Result<IEnumerable<AddressDto>>> GetAddressesByTypeAsync(AddressType type)
     {
         _logger.LogInformation("Retrieving addresses of type: {AddressType}", type);
         var addresses = await _repository.GetByTypeAsync(type);
-        return addresses.Select(MapToDto);
+        return Result<IEnumerable<AddressDto>>.Success(addresses.Select(MapToDto));
     }
 
-    public async Task<AddressDto> CreateAddressAsync(CreateAddressRequest request)
+    public async Task<Result<AddressDto>> CreateAddressAsync(CreateAddressRequest request)
     {
         _logger.LogInformation("Creating new address for owner: {OwnerName}", request.OwnerName);
-        
+
         var address = new Address
         {
             Id = Guid.NewGuid(),
@@ -62,18 +65,18 @@ public class AddressService : IAddressService
         };
 
         var created = await _repository.CreateAsync(address);
-        return MapToDto(created);
+        return Result<AddressDto>.Success(MapToDto(created));
     }
 
-    public async Task<AddressDto?> UpdateAddressAsync(Guid id, UpdateAddressRequest request)
+    public async Task<Result<AddressDto>> UpdateAddressAsync(Guid id, UpdateAddressRequest request)
     {
         _logger.LogInformation("Updating address with ID: {AddressId}", id);
-        
+
         var existing = await _repository.GetByIdAsync(id);
         if (existing == null)
         {
             _logger.LogWarning("Address with ID: {AddressId} not found", id);
-            return null;
+            return Result<AddressDto>.Failure($"Address with ID '{id}' not found.");
         }
 
         existing.Street = request.Street;
@@ -87,13 +90,18 @@ public class AddressService : IAddressService
         existing.UpdatedAt = DateTime.UtcNow;
 
         var updated = await _repository.UpdateAsync(existing);
-        return updated != null ? MapToDto(updated) : null;
+        return updated is not null
+            ? Result<AddressDto>.Success(MapToDto(updated))
+            : Result<AddressDto>.Failure($"Address with ID '{id}' not found.");
     }
 
-    public async Task<bool> DeleteAddressAsync(Guid id)
+    public async Task<Result> DeleteAddressAsync(Guid id)
     {
         _logger.LogInformation("Deleting address with ID: {AddressId}", id);
-        return await _repository.DeleteAsync(id);
+        var deleted = await _repository.DeleteAsync(id);
+        return deleted
+            ? Result.Success()
+            : Result.Failure($"Address with ID '{id}' not found.");
     }
 
     private static AddressDto MapToDto(Address address) => new(

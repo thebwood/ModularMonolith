@@ -1,3 +1,4 @@
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 using BlazorModularMonolith.Web.Services;
 
@@ -56,12 +57,11 @@ public class BusinessesViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            Businesses = await _businessService.GetAllAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading businesses");
-            SetError("Failed to load businesses. Please try again.");
+            var result = await _businessService.GetAllAsync();
+            if (result.IsSuccess)
+                Businesses = result.Value!;
+            else
+                SetError(result.Error!);
         }
         finally
         {
@@ -75,17 +75,16 @@ public class BusinessesViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            var created = await _businessService.CreateAsync(NewBusiness);
-            Businesses.Add(created);
-            Businesses = new List<BusinessModel>(Businesses);
-            NewBusiness = new CreateBusinessModel();
-            IsCreating = false;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating business");
-            SetError("Failed to create business. Please try again.");
+            var result = await _businessService.CreateAsync(NewBusiness);
+            if (result.IsSuccess)
+            {
+                Businesses.Add(result.Value!);
+                Businesses = new List<BusinessModel>(Businesses);
+                NewBusiness = new CreateBusinessModel();
+                IsCreating = false;
+                return true;
+            }
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -117,26 +116,20 @@ public class BusinessesViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            var updated = await _businessService.UpdateAsync(SelectedBusiness.Id, EditBusiness);
-            if (updated != null)
+            var result = await _businessService.UpdateAsync(SelectedBusiness.Id, EditBusiness);
+            if (result.IsSuccess)
             {
                 var index = Businesses.FindIndex(b => b.Id == SelectedBusiness.Id);
                 if (index >= 0)
                 {
-                    Businesses[index] = updated;
+                    Businesses[index] = result.Value!;
                     Businesses = new List<BusinessModel>(Businesses);
                 }
                 IsEditing = false;
                 SelectedBusiness = null;
                 return true;
             }
-            SetError("Business not found.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating business");
-            SetError("Failed to update business. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -151,19 +144,13 @@ public class BusinessesViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            var success = await _businessService.DeleteAsync(id);
-            if (success)
+            var result = await _businessService.DeleteAsync(id);
+            if (result.IsSuccess)
             {
                 Businesses = Businesses.Where(b => b.Id != id).ToList();
                 return true;
             }
-            SetError("Failed to delete business.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting business");
-            SetError("Failed to delete business. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -222,21 +209,25 @@ public class BusinessesViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            // Load business's addresses
-            BusinessAddresses = await _addressService.GetByOwnerIdAsync(business.Id);
+            var addressesResult = await _addressService.GetByOwnerIdAsync(business.Id);
+            if (!addressesResult.IsSuccess)
+            {
+                SetError(addressesResult.Error!);
+                return;
+            }
+            BusinessAddresses = addressesResult.Value!;
 
-            // Load all addresses to show available ones
-            var allAddresses = await _addressService.GetAllAsync();
-            AvailableAddresses = allAddresses
+            var allAddressesResult = await _addressService.GetAllAsync();
+            if (!allAddressesResult.IsSuccess)
+            {
+                SetError(allAddressesResult.Error!);
+                return;
+            }
+            AvailableAddresses = allAddressesResult.Value!
                 .Where(a => !business.AddressIds.Contains(a.Id))
                 .ToList();
 
             IsManagingAddresses = true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading addresses for business {BusinessId}", business.Id);
-            SetError("Failed to load addresses. Please try again.");
         }
         finally
         {
@@ -253,29 +244,19 @@ public class BusinessesViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            var updated = await _businessService.AddAddressAsync(SelectedBusiness.Id, addressId);
-            if (updated != null)
+            var result = await _businessService.AddAddressAsync(SelectedBusiness.Id, addressId);
+            if (result.IsSuccess)
             {
-                // Update the business in the list
                 var index = Businesses.FindIndex(b => b.Id == SelectedBusiness.Id);
                 if (index >= 0)
                 {
-                    Businesses[index] = updated;
+                    Businesses[index] = result.Value!;
                     Businesses = new List<BusinessModel>(Businesses);
                 }
-
-                // Refresh addresses
-                await StartManageAddressesAsync(updated);
+                await StartManageAddressesAsync(result.Value!);
                 return true;
             }
-
-            SetError("Failed to add address to business.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding address to business");
-            SetError("Failed to add address. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -293,29 +274,19 @@ public class BusinessesViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            var updated = await _businessService.RemoveAddressAsync(SelectedBusiness.Id, addressId);
-            if (updated != null)
+            var result = await _businessService.RemoveAddressAsync(SelectedBusiness.Id, addressId);
+            if (result.IsSuccess)
             {
-                // Update the business in the list
                 var index = Businesses.FindIndex(b => b.Id == SelectedBusiness.Id);
                 if (index >= 0)
                 {
-                    Businesses[index] = updated;
+                    Businesses[index] = result.Value!;
                     Businesses = new List<BusinessModel>(Businesses);
                 }
-
-                // Refresh addresses
-                await StartManageAddressesAsync(updated);
+                await StartManageAddressesAsync(result.Value!);
                 return true;
             }
-
-            SetError("Failed to remove address from business.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error removing address from business");
-            SetError("Failed to remove address. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -346,40 +317,32 @@ public class BusinessesViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            // Ensure the address is correctly configured
             NewAddress.Type = AddressType.Business;
             NewAddress.OwnerId = SelectedBusiness.Id;
             NewAddress.OwnerName = SelectedBusiness.Name;
 
-            // Create the address
-            var createdAddress = await _addressService.CreateAsync(NewAddress);
-
-            // Add it to the business
-            var updated = await _businessService.AddAddressAsync(SelectedBusiness.Id, createdAddress.Id);
-            if (updated != null)
+            var addressResult = await _addressService.CreateAsync(NewAddress);
+            if (!addressResult.IsSuccess)
             {
-                // Update the business in the list
+                SetError(addressResult.Error!);
+                return false;
+            }
+
+            var businessResult = await _businessService.AddAddressAsync(SelectedBusiness.Id, addressResult.Value!.Id);
+            if (businessResult.IsSuccess)
+            {
                 var index = Businesses.FindIndex(b => b.Id == SelectedBusiness.Id);
                 if (index >= 0)
                 {
-                    Businesses[index] = updated;
+                    Businesses[index] = businessResult.Value!;
                     Businesses = new List<BusinessModel>(Businesses);
                 }
-
-                // Reset form and refresh
                 NewAddress = new CreateAddressModel();
                 IsCreatingAddress = false;
-                await StartManageAddressesAsync(updated);
+                await StartManageAddressesAsync(businessResult.Value!);
                 return true;
             }
-
-            SetError("Failed to add newly created address to business.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating and adding address");
-            SetError("Failed to create address. Please try again.");
+            SetError(businessResult.Error!);
             return false;
         }
         finally

@@ -1,12 +1,13 @@
 using BlazorModularMonolith.Api.Modules.Authentication.Application.DTOs;
+using BlazorModularMonolith.Api.Shared.Common;
 
 namespace BlazorModularMonolith.Api.Modules.Authentication.Application.Services;
 
 public interface IUserManagementService
 {
-    Task<IEnumerable<UserDto>> GetAllUsersAsync();
-    Task<UserDto?> GetUserByIdAsync(Guid id);
-    Task<UserDto?> CreateUserAsync(CreateUserRequest request);
-    Task<UserDto?> UpdateUserAsync(Guid id, UpdateUserRequest request);
-    Task<bool> DeleteUserAsync(Guid id);
+    Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync();
+    Task<Result<UserDto>> GetUserByIdAsync(Guid id);
+    Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request);
+    Task<Result<UserDto>> UpdateUserAsync(Guid id, UpdateUserRequest request);
+    Task<Result> DeleteUserAsync(Guid id);
 }

@@ -23,12 +23,10 @@ public static class AuthenticationEndpoints
             [FromBody] LoginRequest request,
             [FromServices] IAuthenticationService authService) =>
         {
-            var response = await authService.LoginAsync(request);
-
-            if (response == null)
-                return Results.Unauthorized();
-
-            return Results.Ok(response);
+            var result = await authService.LoginAsync(request);
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : Results.Unauthorized();
         })
         .WithName("Login")
         .WithSummary("Authenticate user and receive JWT token")
@@ -39,12 +37,10 @@ public static class AuthenticationEndpoints
             [FromBody] RegisterRequest request,
             [FromServices] IAuthenticationService authService) =>
         {
-            var response = await authService.RegisterAsync(request);
-
-            if (response == null)
-                return Results.BadRequest(new { message = "User already exists" });
-
-            return Results.Ok(response);
+            var result = await authService.RegisterAsync(request);
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : Results.BadRequest(new { message = result.Error });
         })
         .WithName("Register")
         .WithSummary("Register a new user account")
@@ -77,8 +73,10 @@ public static class AuthenticationEndpoints
 
         usersGroup.MapGet("/", async ([FromServices] IUserManagementService userService) =>
         {
-            var users = await userService.GetAllUsersAsync();
-            return Results.Ok(users);
+            var result = await userService.GetAllUsersAsync();
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : Results.Problem(result.Error);
         })
         .WithName("GetAllUsers")
         .WithSummary("Get all users")
@@ -86,8 +84,10 @@ public static class AuthenticationEndpoints
 
         usersGroup.MapGet("/{id:guid}", async (Guid id, [FromServices] IUserManagementService userService) =>
         {
-            var user = await userService.GetUserByIdAsync(id);
-            return user is null ? Results.NotFound() : Results.Ok(user);
+            var result = await userService.GetUserByIdAsync(id);
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : Results.NotFound(new { message = result.Error });
         })
         .WithName("GetUserById")
         .WithSummary("Get a user by ID")
@@ -98,10 +98,10 @@ public static class AuthenticationEndpoints
             [FromBody] CreateUserRequest request,
             [FromServices] IUserManagementService userService) =>
         {
-            var user = await userService.CreateUserAsync(request);
-            return user is null
-                ? Results.BadRequest(new { message = "Username already exists" })
-                : Results.Created($"/api/v1/users/{user.Id}", user);
+            var result = await userService.CreateUserAsync(request);
+            return result.IsSuccess
+                ? Results.Created($"/api/v1/users/{result.Value!.Id}", result.Value)
+                : Results.BadRequest(new { message = result.Error });
         })
         .WithName("CreateUser")
         .WithSummary("Create a new user")
@@ -113,8 +113,10 @@ public static class AuthenticationEndpoints
             [FromBody] UpdateUserRequest request,
             [FromServices] IUserManagementService userService) =>
         {
-            var user = await userService.UpdateUserAsync(id, request);
-            return user is null ? Results.NotFound() : Results.Ok(user);
+            var result = await userService.UpdateUserAsync(id, request);
+            return result.IsSuccess
+                ? Results.Ok(result.Value)
+                : Results.NotFound(new { message = result.Error });
         })
         .WithName("UpdateUser")
         .WithSummary("Update an existing user")
@@ -123,8 +125,10 @@ public static class AuthenticationEndpoints
 
         usersGroup.MapDelete("/{id:guid}", async (Guid id, [FromServices] IUserManagementService userService) =>
         {
-            var deleted = await userService.DeleteUserAsync(id);
-            return deleted ? Results.NoContent() : Results.NotFound();
+            var result = await userService.DeleteUserAsync(id);
+            return result.IsSuccess
+                ? Results.NoContent()
+                : Results.NotFound(new { message = result.Error });
         })
         .WithName("DeleteUser")
         .WithSummary("Delete a user")

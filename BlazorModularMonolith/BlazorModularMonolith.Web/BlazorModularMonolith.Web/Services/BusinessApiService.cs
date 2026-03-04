@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 
 namespace BlazorModularMonolith.Web.Services;
@@ -15,152 +17,190 @@ public class BusinessApiService : IBusinessApiService
         _logger = logger;
     }
 
-    public async Task<List<BusinessModel>> GetAllAsync()
+    public async Task<Result<List<BusinessModel>>> GetAllAsync()
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<List<BusinessModel>>(BaseEndpoint);
-            return response ?? new List<BusinessModel>();
+            return Result<List<BusinessModel>>.Success(response ?? []);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching all businesses");
-            throw;
+            return Result<List<BusinessModel>>.Failure($"Failed to load businesses: {ex.Message}");
         }
     }
 
-    public async Task<BusinessModel?> GetByIdAsync(Guid id)
+    public async Task<Result<BusinessModel>> GetByIdAsync(Guid id)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<BusinessModel>($"{BaseEndpoint}/{id}");
+            var business = await _httpClient.GetFromJsonAsync<BusinessModel>($"{BaseEndpoint}/{id}");
+            return business is not null
+                ? Result<BusinessModel>.Success(business)
+                : Result<BusinessModel>.Failure("Business not found.");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            return null;
+            return Result<BusinessModel>.Failure("Business not found.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching business {BusinessId}", id);
-            throw;
+            return Result<BusinessModel>.Failure($"Failed to load business: {ex.Message}");
         }
     }
 
-    public async Task<BusinessModel?> GetByTaxIdAsync(string taxId)
+    public async Task<Result<BusinessModel>> GetByTaxIdAsync(string taxId)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<BusinessModel>($"{BaseEndpoint}/taxid/{taxId}");
+            var business = await _httpClient.GetFromJsonAsync<BusinessModel>($"{BaseEndpoint}/taxid/{taxId}");
+            return business is not null
+                ? Result<BusinessModel>.Success(business)
+                : Result<BusinessModel>.Failure("Business not found.");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            return null;
+            return Result<BusinessModel>.Failure("Business not found.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching business by tax ID {TaxId}", taxId);
-            throw;
+            return Result<BusinessModel>.Failure($"Failed to load business: {ex.Message}");
         }
     }
 
-    public async Task<List<BusinessModel>> GetByTypeAsync(BusinessType type)
+    public async Task<Result<List<BusinessModel>>> GetByTypeAsync(BusinessType type)
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<List<BusinessModel>>($"{BaseEndpoint}/type/{type}");
-            return response ?? new List<BusinessModel>();
+            return Result<List<BusinessModel>>.Success(response ?? []);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching businesses of type {Type}", type);
-            throw;
+            return Result<List<BusinessModel>>.Failure($"Failed to load businesses: {ex.Message}");
         }
     }
 
-    public async Task<BusinessModel> CreateAsync(CreateBusinessModel model)
+    public async Task<Result<BusinessModel>> CreateAsync(CreateBusinessModel model)
     {
         try
         {
             var response = await _httpClient.PostAsJsonAsync(BaseEndpoint, model);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<BusinessModel>() 
-                ?? throw new InvalidOperationException("Failed to deserialize created business");
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<BusinessModel>.Failure(error ?? "Failed to create business.");
+            }
+            var business = await response.Content.ReadFromJsonAsync<BusinessModel>();
+            return business is not null
+                ? Result<BusinessModel>.Success(business)
+                : Result<BusinessModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating business");
-            throw;
+            return Result<BusinessModel>.Failure($"Failed to create business: {ex.Message}");
         }
     }
 
-    public async Task<BusinessModel?> UpdateAsync(Guid id, CreateBusinessModel model)
+    public async Task<Result<BusinessModel>> UpdateAsync(Guid id, CreateBusinessModel model)
     {
         try
         {
             var response = await _httpClient.PutAsJsonAsync($"{BaseEndpoint}/{id}", model);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<BusinessModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<BusinessModel>.Failure(error ?? "Failed to update business.");
+            }
+            var business = await response.Content.ReadFromJsonAsync<BusinessModel>();
+            return business is not null
+                ? Result<BusinessModel>.Success(business)
+                : Result<BusinessModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating business {BusinessId}", id);
-            throw;
+            return Result<BusinessModel>.Failure($"Failed to update business: {ex.Message}");
         }
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<Result> DeleteAsync(Guid id)
     {
         try
         {
             var response = await _httpClient.DeleteAsync($"{BaseEndpoint}/{id}");
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result.Failure(error ?? "Failed to delete business.");
+            }
+            return Result.Success();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting business {BusinessId}", id);
-            throw;
+            return Result.Failure($"Failed to delete business: {ex.Message}");
         }
     }
 
-    public async Task<BusinessModel?> AddAddressAsync(Guid businessId, Guid addressId)
+    public async Task<Result<BusinessModel>> AddAddressAsync(Guid businessId, Guid addressId)
     {
         try
         {
             var response = await _httpClient.PostAsync($"{BaseEndpoint}/{businessId}/addresses/{addressId}", null);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<BusinessModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<BusinessModel>.Failure(error ?? "Failed to add address to business.");
+            }
+            var business = await response.Content.ReadFromJsonAsync<BusinessModel>();
+            return business is not null
+                ? Result<BusinessModel>.Success(business)
+                : Result<BusinessModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding address {AddressId} to business {BusinessId}", addressId, businessId);
-            throw;
+            return Result<BusinessModel>.Failure($"Failed to add address: {ex.Message}");
         }
     }
 
-    public async Task<BusinessModel?> RemoveAddressAsync(Guid businessId, Guid addressId)
+    public async Task<Result<BusinessModel>> RemoveAddressAsync(Guid businessId, Guid addressId)
     {
         try
         {
             var response = await _httpClient.DeleteAsync($"{BaseEndpoint}/{businessId}/addresses/{addressId}");
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<BusinessModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<BusinessModel>.Failure(error ?? "Failed to remove address from business.");
+            }
+            var business = await response.Content.ReadFromJsonAsync<BusinessModel>();
+            return business is not null
+                ? Result<BusinessModel>.Success(business)
+                : Result<BusinessModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error removing address {AddressId} from business {BusinessId}", addressId, businessId);
-            throw;
+            return Result<BusinessModel>.Failure($"Failed to remove address: {ex.Message}");
         }
+    }
+
+    private static async Task<string?> TryReadErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            if (body.TryGetProperty("message", out var msg))
+                return msg.GetString();
+        }
+        catch { }
+        return null;
     }
 }

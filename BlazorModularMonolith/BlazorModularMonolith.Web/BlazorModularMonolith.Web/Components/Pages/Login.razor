@@ -125,23 +125,19 @@
 
         try
         {
-            System.Diagnostics.Debug.WriteLine($"Attempting login with username: '{_loginModel.Username}'");
-            var userInfo = await AuthService.LoginAsync(_loginModel);
+            var result = await AuthService.LoginAsync(_loginModel);
 
-            if (userInfo != null)
+            if (result.IsSuccess)
             {
-                System.Diagnostics.Debug.WriteLine("Login successful!");
                 Navigation.NavigateTo("/", forceLoad: true);
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("Login returned null");
-                _errorMessage = "Invalid username or password. Please check the browser console (F12) and Output window for detailed error messages.";
+                _errorMessage = result.Error!;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Login exception: {ex.Message}");
             _errorMessage = $"Login failed: {ex.Message}";
         }
         finally

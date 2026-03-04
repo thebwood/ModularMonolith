@@ -50,49 +50,51 @@ public static class PersonEndpoints
 
     private static async Task<IResult> GetAllPeople(IPersonService service)
     {
-        var people = await service.GetAllPeopleAsync();
-        return Results.Ok(people);
+        var result = await service.GetAllPeopleAsync();
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
     }
 
     private static async Task<IResult> GetPersonById(Guid id, IPersonService service)
     {
-        var person = await service.GetPersonAsync(id);
-        return person != null ? Results.Ok(person) : Results.NotFound();
+        var result = await service.GetPersonAsync(id);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> GetPersonByEmail(string email, IPersonService service)
     {
-        var person = await service.GetPersonByEmailAsync(email);
-        return person != null ? Results.Ok(person) : Results.NotFound();
+        var result = await service.GetPersonByEmailAsync(email);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> CreatePerson([FromBody] CreatePersonRequest request, IPersonService service)
     {
-        var created = await service.CreatePersonAsync(request);
-        return Results.Created($"/api/people/{created.Id}", created);
+        var result = await service.CreatePersonAsync(request);
+        return result.IsSuccess
+            ? Results.Created($"/api/people/{result.Value!.Id}", result.Value)
+            : Results.BadRequest(new { message = result.Error });
     }
 
     private static async Task<IResult> UpdatePerson(Guid id, [FromBody] UpdatePersonRequest request, IPersonService service)
     {
-        var updated = await service.UpdatePersonAsync(id, request);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.UpdatePersonAsync(id, request);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> DeletePerson(Guid id, IPersonService service)
     {
-        var deleted = await service.DeletePersonAsync(id);
-        return deleted ? Results.NoContent() : Results.NotFound();
+        var result = await service.DeletePersonAsync(id);
+        return result.IsSuccess ? Results.NoContent() : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> AddAddressToPerson(Guid id, Guid addressId, IPersonService service)
     {
-        var updated = await service.AddAddressToPersonAsync(id, addressId);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.AddAddressToPersonAsync(id, addressId);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> RemoveAddressFromPerson(Guid id, Guid addressId, IPersonService service)
     {
-        var updated = await service.RemoveAddressFromPersonAsync(id, addressId);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.RemoveAddressFromPersonAsync(id, addressId);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 }

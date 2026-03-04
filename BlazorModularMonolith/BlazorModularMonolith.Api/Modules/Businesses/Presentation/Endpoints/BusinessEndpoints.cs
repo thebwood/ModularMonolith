@@ -55,20 +55,20 @@ public static class BusinessEndpoints
 
     private static async Task<IResult> GetAllBusinesses(IBusinessService service)
     {
-        var businesses = await service.GetAllBusinessesAsync();
-        return Results.Ok(businesses);
+        var result = await service.GetAllBusinessesAsync();
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
     }
 
     private static async Task<IResult> GetBusinessById(Guid id, IBusinessService service)
     {
-        var business = await service.GetBusinessAsync(id);
-        return business != null ? Results.Ok(business) : Results.NotFound();
+        var result = await service.GetBusinessAsync(id);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> GetBusinessByTaxId(string taxId, IBusinessService service)
     {
-        var business = await service.GetBusinessByTaxIdAsync(taxId);
-        return business != null ? Results.Ok(business) : Results.NotFound();
+        var result = await service.GetBusinessByTaxIdAsync(taxId);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> GetBusinessesByType(string type, IBusinessService service)
@@ -78,37 +78,39 @@ public static class BusinessEndpoints
             return Results.BadRequest("Invalid business type. Valid values are: SoleProprietorship, Partnership, Corporation, LLC, NonProfit, Other");
         }
 
-        var businesses = await service.GetBusinessesByTypeAsync(businessType);
-        return Results.Ok(businesses);
+        var result = await service.GetBusinessesByTypeAsync(businessType);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
     }
 
     private static async Task<IResult> CreateBusiness([FromBody] CreateBusinessRequest request, IBusinessService service)
     {
-        var created = await service.CreateBusinessAsync(request);
-        return Results.Created($"/api/businesses/{created.Id}", created);
+        var result = await service.CreateBusinessAsync(request);
+        return result.IsSuccess
+            ? Results.Created($"/api/businesses/{result.Value!.Id}", result.Value)
+            : Results.BadRequest(new { message = result.Error });
     }
 
     private static async Task<IResult> UpdateBusiness(Guid id, [FromBody] UpdateBusinessRequest request, IBusinessService service)
     {
-        var updated = await service.UpdateBusinessAsync(id, request);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.UpdateBusinessAsync(id, request);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> DeleteBusiness(Guid id, IBusinessService service)
     {
-        var deleted = await service.DeleteBusinessAsync(id);
-        return deleted ? Results.NoContent() : Results.NotFound();
+        var result = await service.DeleteBusinessAsync(id);
+        return result.IsSuccess ? Results.NoContent() : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> AddAddressToBusiness(Guid id, Guid addressId, IBusinessService service)
     {
-        var updated = await service.AddAddressToBusinessAsync(id, addressId);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.AddAddressToBusinessAsync(id, addressId);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> RemoveAddressFromBusiness(Guid id, Guid addressId, IBusinessService service)
     {
-        var updated = await service.RemoveAddressFromBusinessAsync(id, addressId);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.RemoveAddressFromBusinessAsync(id, addressId);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 }

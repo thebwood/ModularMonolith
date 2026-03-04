@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 using Microsoft.JSInterop;
 
@@ -21,7 +22,7 @@ public class AuthService : IAuthService
         _tokenProvider = tokenProvider;
     }
 
-    public async Task<UserInfo?> LoginAsync(LoginModel loginModel)
+    public async Task<Result<UserInfo>> LoginAsync(LoginModel loginModel)
     {
         try
         {
@@ -35,12 +36,12 @@ public class AuthService : IAuthService
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 System.Diagnostics.Debug.WriteLine($"Login failed with status {response.StatusCode}: {errorContent}");
-                return null;
+                return Result<UserInfo>.Failure("Invalid username or password.");
             }
 
             var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
             if (loginResponse == null)
-                return null;
+                return Result<UserInfo>.Failure("Invalid server response.");
 
             var userInfo = new UserInfo
             {
@@ -52,17 +53,17 @@ public class AuthService : IAuthService
             };
 
             await SaveUserInfoAsync(userInfo);
-            return userInfo;
+            return Result<UserInfo>.Success(userInfo);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Login exception: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-            return null;
+            return Result<UserInfo>.Failure($"Login failed: {ex.Message}");
         }
     }
 
-    public async Task<UserInfo?> RegisterAsync(RegisterModel registerModel)
+    public async Task<Result<UserInfo>> RegisterAsync(RegisterModel registerModel)
     {
         try
         {
@@ -74,11 +75,14 @@ public class AuthService : IAuthService
             });
 
             if (!response.IsSuccessStatusCode)
-                return null;
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<UserInfo>.Failure(error ?? "Username already exists or registration failed.");
+            }
 
             var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
             if (loginResponse == null)
-                return null;
+                return Result<UserInfo>.Failure("Invalid server response.");
 
             var userInfo = new UserInfo
             {
@@ -90,12 +94,24 @@ public class AuthService : IAuthService
             };
 
             await SaveUserInfoAsync(userInfo);
-            return userInfo;
+            return Result<UserInfo>.Success(userInfo);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            return Result<UserInfo>.Failure($"Registration failed: {ex.Message}");
         }
+    }
+
+    private static async Task<string?> TryReadErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            if (body.TryGetProperty("message", out var msg))
+                return msg.GetString();
+        }
+        catch { }
+        return null;
     }
 
     private async Task SaveUserInfoAsync(UserInfo userInfo)

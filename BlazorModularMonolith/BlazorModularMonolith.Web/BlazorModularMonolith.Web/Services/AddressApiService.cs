@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 
 namespace BlazorModularMonolith.Web.Services;
@@ -15,111 +17,140 @@ public class AddressApiService : IAddressApiService
         _logger = logger;
     }
 
-    public async Task<List<AddressModel>> GetAllAsync()
+    public async Task<Result<List<AddressModel>>> GetAllAsync()
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<List<AddressModel>>(BaseEndpoint);
-            return response ?? new List<AddressModel>();
+            return Result<List<AddressModel>>.Success(response ?? []);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching all addresses");
-            throw;
+            return Result<List<AddressModel>>.Failure($"Failed to load addresses: {ex.Message}");
         }
     }
 
-    public async Task<AddressModel?> GetByIdAsync(Guid id)
+    public async Task<Result<AddressModel>> GetByIdAsync(Guid id)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<AddressModel>($"{BaseEndpoint}/{id}");
+            var address = await _httpClient.GetFromJsonAsync<AddressModel>($"{BaseEndpoint}/{id}");
+            return address is not null
+                ? Result<AddressModel>.Success(address)
+                : Result<AddressModel>.Failure("Address not found.");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            return null;
+            return Result<AddressModel>.Failure("Address not found.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching address {AddressId}", id);
-            throw;
+            return Result<AddressModel>.Failure($"Failed to load address: {ex.Message}");
         }
     }
 
-    public async Task<List<AddressModel>> GetByOwnerIdAsync(Guid ownerId)
+    public async Task<Result<List<AddressModel>>> GetByOwnerIdAsync(Guid ownerId)
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<List<AddressModel>>($"{BaseEndpoint}/owner/{ownerId}");
-            return response ?? new List<AddressModel>();
+            return Result<List<AddressModel>>.Success(response ?? []);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching addresses for owner {OwnerId}", ownerId);
-            throw;
+            return Result<List<AddressModel>>.Failure($"Failed to load addresses: {ex.Message}");
         }
     }
 
-    public async Task<List<AddressModel>> GetByTypeAsync(AddressType type)
+    public async Task<Result<List<AddressModel>>> GetByTypeAsync(AddressType type)
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<List<AddressModel>>($"{BaseEndpoint}/type/{type}");
-            return response ?? new List<AddressModel>();
+            return Result<List<AddressModel>>.Success(response ?? []);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching addresses of type {Type}", type);
-            throw;
+            return Result<List<AddressModel>>.Failure($"Failed to load addresses: {ex.Message}");
         }
     }
 
-    public async Task<AddressModel> CreateAsync(CreateAddressModel model)
+    public async Task<Result<AddressModel>> CreateAsync(CreateAddressModel model)
     {
         try
         {
             var response = await _httpClient.PostAsJsonAsync(BaseEndpoint, model);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<AddressModel>() 
-                ?? throw new InvalidOperationException("Failed to deserialize created address");
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<AddressModel>.Failure(error ?? "Failed to create address.");
+            }
+            var address = await response.Content.ReadFromJsonAsync<AddressModel>();
+            return address is not null
+                ? Result<AddressModel>.Success(address)
+                : Result<AddressModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating address");
-            throw;
+            return Result<AddressModel>.Failure($"Failed to create address: {ex.Message}");
         }
     }
 
-    public async Task<AddressModel?> UpdateAsync(Guid id, CreateAddressModel model)
+    public async Task<Result<AddressModel>> UpdateAsync(Guid id, CreateAddressModel model)
     {
         try
         {
             var response = await _httpClient.PutAsJsonAsync($"{BaseEndpoint}/{id}", model);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<AddressModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<AddressModel>.Failure(error ?? "Failed to update address.");
+            }
+            var address = await response.Content.ReadFromJsonAsync<AddressModel>();
+            return address is not null
+                ? Result<AddressModel>.Success(address)
+                : Result<AddressModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating address {AddressId}", id);
-            throw;
+            return Result<AddressModel>.Failure($"Failed to update address: {ex.Message}");
         }
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<Result> DeleteAsync(Guid id)
     {
         try
         {
             var response = await _httpClient.DeleteAsync($"{BaseEndpoint}/{id}");
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result.Failure(error ?? "Failed to delete address.");
+            }
+            return Result.Success();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting address {AddressId}", id);
-            throw;
+            return Result.Failure($"Failed to delete address: {ex.Message}");
         }
+    }
+
+    private static async Task<string?> TryReadErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            if (body.TryGetProperty("message", out var msg))
+                return msg.GetString();
+        }
+        catch { }
+        return null;
     }
 }

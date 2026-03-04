@@ -47,20 +47,20 @@ public static class AddressEndpoints
 
     private static async Task<IResult> GetAllAddresses(IAddressService service)
     {
-        var addresses = await service.GetAllAddressesAsync();
-        return Results.Ok(addresses);
+        var result = await service.GetAllAddressesAsync();
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
     }
 
     private static async Task<IResult> GetAddressById(Guid id, IAddressService service)
     {
-        var address = await service.GetAddressAsync(id);
-        return address != null ? Results.Ok(address) : Results.NotFound();
+        var result = await service.GetAddressAsync(id);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> GetAddressesByOwner(Guid ownerId, IAddressService service)
     {
-        var addresses = await service.GetAddressesByOwnerAsync(ownerId);
-        return Results.Ok(addresses);
+        var result = await service.GetAddressesByOwnerAsync(ownerId);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
     }
 
     private static async Task<IResult> GetAddressesByType(string type, IAddressService service)
@@ -70,25 +70,27 @@ public static class AddressEndpoints
             return Results.BadRequest("Invalid address type. Valid values are: Person, Business, Other");
         }
 
-        var addresses = await service.GetAddressesByTypeAsync(addressType);
-        return Results.Ok(addresses);
+        var result = await service.GetAddressesByTypeAsync(addressType);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(result.Error);
     }
 
     private static async Task<IResult> CreateAddress([FromBody] CreateAddressRequest request, IAddressService service)
     {
-        var created = await service.CreateAddressAsync(request);
-        return Results.Created($"/api/addresses/{created.Id}", created);
+        var result = await service.CreateAddressAsync(request);
+        return result.IsSuccess
+            ? Results.Created($"/api/addresses/{result.Value!.Id}", result.Value)
+            : Results.BadRequest(new { message = result.Error });
     }
 
     private static async Task<IResult> UpdateAddress(Guid id, [FromBody] UpdateAddressRequest request, IAddressService service)
     {
-        var updated = await service.UpdateAddressAsync(id, request);
-        return updated != null ? Results.Ok(updated) : Results.NotFound();
+        var result = await service.UpdateAddressAsync(id, request);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(new { message = result.Error });
     }
 
     private static async Task<IResult> DeleteAddress(Guid id, IAddressService service)
     {
-        var deleted = await service.DeleteAddressAsync(id);
-        return deleted ? Results.NoContent() : Results.NotFound();
+        var result = await service.DeleteAddressAsync(id);
+        return result.IsSuccess ? Results.NoContent() : Results.NotFound(new { message = result.Error });
     }
 }

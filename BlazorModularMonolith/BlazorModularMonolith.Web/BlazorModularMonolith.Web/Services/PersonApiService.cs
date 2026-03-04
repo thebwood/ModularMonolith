@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 
 namespace BlazorModularMonolith.Web.Services;
@@ -15,138 +17,176 @@ public class PersonApiService : IPersonApiService
         _logger = logger;
     }
 
-    public async Task<List<PersonModel>> GetAllAsync()
+    public async Task<Result<List<PersonModel>>> GetAllAsync()
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<List<PersonModel>>(BaseEndpoint);
-            return response ?? new List<PersonModel>();
+            return Result<List<PersonModel>>.Success(response ?? []);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching all people");
-            throw;
+            return Result<List<PersonModel>>.Failure($"Failed to load people: {ex.Message}");
         }
     }
 
-    public async Task<PersonModel?> GetByIdAsync(Guid id)
+    public async Task<Result<PersonModel>> GetByIdAsync(Guid id)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<PersonModel>($"{BaseEndpoint}/{id}");
+            var person = await _httpClient.GetFromJsonAsync<PersonModel>($"{BaseEndpoint}/{id}");
+            return person is not null
+                ? Result<PersonModel>.Success(person)
+                : Result<PersonModel>.Failure("Person not found.");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            return null;
+            return Result<PersonModel>.Failure("Person not found.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching person {PersonId}", id);
-            throw;
+            return Result<PersonModel>.Failure($"Failed to load person: {ex.Message}");
         }
     }
 
-    public async Task<PersonModel?> GetByEmailAsync(string email)
+    public async Task<Result<PersonModel>> GetByEmailAsync(string email)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<PersonModel>($"{BaseEndpoint}/email/{email}");
+            var person = await _httpClient.GetFromJsonAsync<PersonModel>($"{BaseEndpoint}/email/{email}");
+            return person is not null
+                ? Result<PersonModel>.Success(person)
+                : Result<PersonModel>.Failure("Person not found.");
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            return null;
+            return Result<PersonModel>.Failure("Person not found.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching person by email {Email}", email);
-            throw;
+            return Result<PersonModel>.Failure($"Failed to load person: {ex.Message}");
         }
     }
 
-    public async Task<PersonModel> CreateAsync(CreatePersonModel model)
+    public async Task<Result<PersonModel>> CreateAsync(CreatePersonModel model)
     {
         try
         {
             var response = await _httpClient.PostAsJsonAsync(BaseEndpoint, model);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<PersonModel>() 
-                ?? throw new InvalidOperationException("Failed to deserialize created person");
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<PersonModel>.Failure(error ?? "Failed to create person.");
+            }
+            var person = await response.Content.ReadFromJsonAsync<PersonModel>();
+            return person is not null
+                ? Result<PersonModel>.Success(person)
+                : Result<PersonModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating person");
-            throw;
+            return Result<PersonModel>.Failure($"Failed to create person: {ex.Message}");
         }
     }
 
-    public async Task<PersonModel?> UpdateAsync(Guid id, CreatePersonModel model)
+    public async Task<Result<PersonModel>> UpdateAsync(Guid id, CreatePersonModel model)
     {
         try
         {
             var response = await _httpClient.PutAsJsonAsync($"{BaseEndpoint}/{id}", model);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<PersonModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<PersonModel>.Failure(error ?? "Failed to update person.");
+            }
+            var person = await response.Content.ReadFromJsonAsync<PersonModel>();
+            return person is not null
+                ? Result<PersonModel>.Success(person)
+                : Result<PersonModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating person {PersonId}", id);
-            throw;
+            return Result<PersonModel>.Failure($"Failed to update person: {ex.Message}");
         }
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<Result> DeleteAsync(Guid id)
     {
         try
         {
             var response = await _httpClient.DeleteAsync($"{BaseEndpoint}/{id}");
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result.Failure(error ?? "Failed to delete person.");
+            }
+            return Result.Success();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting person {PersonId}", id);
-            throw;
+            return Result.Failure($"Failed to delete person: {ex.Message}");
         }
     }
 
-    public async Task<PersonModel?> AddAddressAsync(Guid personId, Guid addressId)
+    public async Task<Result<PersonModel>> AddAddressAsync(Guid personId, Guid addressId)
     {
         try
         {
             var response = await _httpClient.PostAsync($"{BaseEndpoint}/{personId}/addresses/{addressId}", null);
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<PersonModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<PersonModel>.Failure(error ?? "Failed to add address to person.");
+            }
+            var person = await response.Content.ReadFromJsonAsync<PersonModel>();
+            return person is not null
+                ? Result<PersonModel>.Success(person)
+                : Result<PersonModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error adding address {AddressId} to person {PersonId}", addressId, personId);
-            throw;
+            return Result<PersonModel>.Failure($"Failed to add address: {ex.Message}");
         }
     }
 
-    public async Task<PersonModel?> RemoveAddressAsync(Guid personId, Guid addressId)
+    public async Task<Result<PersonModel>> RemoveAddressAsync(Guid personId, Guid addressId)
     {
         try
         {
             var response = await _httpClient.DeleteAsync($"{BaseEndpoint}/{personId}/addresses/{addressId}");
-            
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-            
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<PersonModel>();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await TryReadErrorAsync(response);
+                return Result<PersonModel>.Failure(error ?? "Failed to remove address from person.");
+            }
+            var person = await response.Content.ReadFromJsonAsync<PersonModel>();
+            return person is not null
+                ? Result<PersonModel>.Success(person)
+                : Result<PersonModel>.Failure("Invalid server response.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error removing address {AddressId} from person {PersonId}", addressId, personId);
-            throw;
+            return Result<PersonModel>.Failure($"Failed to remove address: {ex.Message}");
         }
+    }
+
+    private static async Task<string?> TryReadErrorAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            if (body.TryGetProperty("message", out var msg))
+                return msg.GetString();
+        }
+        catch { }
+        return null;
     }
 }

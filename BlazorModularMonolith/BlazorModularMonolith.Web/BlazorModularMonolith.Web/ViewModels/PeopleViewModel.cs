@@ -1,3 +1,4 @@
+using BlazorModularMonolith.Web.Common;
 using BlazorModularMonolith.Web.Models;
 using BlazorModularMonolith.Web.Services;
 
@@ -56,12 +57,11 @@ public class PeopleViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            People = await _personService.GetAllAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading people");
-            SetError("Failed to load people. Please try again.");
+            var result = await _personService.GetAllAsync();
+            if (result.IsSuccess)
+                People = result.Value!;
+            else
+                SetError(result.Error!);
         }
         finally
         {
@@ -75,17 +75,16 @@ public class PeopleViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            var created = await _personService.CreateAsync(NewPerson);
-            People.Add(created);
-            People = new List<PersonModel>(People);
-            NewPerson = new CreatePersonModel();
-            IsCreating = false;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating person");
-            SetError("Failed to create person. Please try again.");
+            var result = await _personService.CreateAsync(NewPerson);
+            if (result.IsSuccess)
+            {
+                People.Add(result.Value!);
+                People = new List<PersonModel>(People);
+                NewPerson = new CreatePersonModel();
+                IsCreating = false;
+                return true;
+            }
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -116,26 +115,20 @@ public class PeopleViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            var updated = await _personService.UpdateAsync(SelectedPerson.Id, EditPerson);
-            if (updated != null)
+            var result = await _personService.UpdateAsync(SelectedPerson.Id, EditPerson);
+            if (result.IsSuccess)
             {
                 var index = People.FindIndex(p => p.Id == SelectedPerson.Id);
                 if (index >= 0)
                 {
-                    People[index] = updated;
+                    People[index] = result.Value!;
                     People = new List<PersonModel>(People);
                 }
                 IsEditing = false;
                 SelectedPerson = null;
                 return true;
             }
-            SetError("Person not found.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating person");
-            SetError("Failed to update person. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -150,19 +143,13 @@ public class PeopleViewModel : ViewModelBase
         {
             IsBusy = true;
             ClearError();
-            var success = await _personService.DeleteAsync(id);
-            if (success)
+            var result = await _personService.DeleteAsync(id);
+            if (result.IsSuccess)
             {
                 People = People.Where(p => p.Id != id).ToList();
                 return true;
             }
-            SetError("Failed to delete person.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting person");
-            SetError("Failed to delete person. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -221,21 +208,25 @@ public class PeopleViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            // Load person's addresses
-            PersonAddresses = await _addressService.GetByOwnerIdAsync(person.Id);
+            var addressesResult = await _addressService.GetByOwnerIdAsync(person.Id);
+            if (!addressesResult.IsSuccess)
+            {
+                SetError(addressesResult.Error!);
+                return;
+            }
+            PersonAddresses = addressesResult.Value!;
 
-            // Load all addresses to show available ones
-            var allAddresses = await _addressService.GetAllAsync();
-            AvailableAddresses = allAddresses
+            var allAddressesResult = await _addressService.GetAllAsync();
+            if (!allAddressesResult.IsSuccess)
+            {
+                SetError(allAddressesResult.Error!);
+                return;
+            }
+            AvailableAddresses = allAddressesResult.Value!
                 .Where(a => !person.AddressIds.Contains(a.Id))
                 .ToList();
 
             IsManagingAddresses = true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading addresses for person {PersonId}", person.Id);
-            SetError("Failed to load addresses. Please try again.");
         }
         finally
         {
@@ -252,29 +243,19 @@ public class PeopleViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            var updated = await _personService.AddAddressAsync(SelectedPerson.Id, addressId);
-            if (updated != null)
+            var result = await _personService.AddAddressAsync(SelectedPerson.Id, addressId);
+            if (result.IsSuccess)
             {
-                // Update the person in the list
                 var index = People.FindIndex(p => p.Id == SelectedPerson.Id);
                 if (index >= 0)
                 {
-                    People[index] = updated;
+                    People[index] = result.Value!;
                     People = new List<PersonModel>(People);
                 }
-
-                // Refresh addresses
-                await StartManageAddressesAsync(updated);
+                await StartManageAddressesAsync(result.Value!);
                 return true;
             }
-
-            SetError("Failed to add address to person.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error adding address to person");
-            SetError("Failed to add address. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -292,29 +273,19 @@ public class PeopleViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            var updated = await _personService.RemoveAddressAsync(SelectedPerson.Id, addressId);
-            if (updated != null)
+            var result = await _personService.RemoveAddressAsync(SelectedPerson.Id, addressId);
+            if (result.IsSuccess)
             {
-                // Update the person in the list
                 var index = People.FindIndex(p => p.Id == SelectedPerson.Id);
                 if (index >= 0)
                 {
-                    People[index] = updated;
+                    People[index] = result.Value!;
                     People = new List<PersonModel>(People);
                 }
-
-                // Refresh addresses
-                await StartManageAddressesAsync(updated);
+                await StartManageAddressesAsync(result.Value!);
                 return true;
             }
-
-            SetError("Failed to remove address from person.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error removing address from person");
-            SetError("Failed to remove address. Please try again.");
+            SetError(result.Error!);
             return false;
         }
         finally
@@ -345,40 +316,32 @@ public class PeopleViewModel : ViewModelBase
             IsBusy = true;
             ClearError();
 
-            // Ensure the address is correctly configured
             NewAddress.Type = AddressType.Person;
             NewAddress.OwnerId = SelectedPerson.Id;
             NewAddress.OwnerName = SelectedPerson.FullName;
 
-            // Create the address
-            var createdAddress = await _addressService.CreateAsync(NewAddress);
-
-            // Add it to the person
-            var updated = await _personService.AddAddressAsync(SelectedPerson.Id, createdAddress.Id);
-            if (updated != null)
+            var addressResult = await _addressService.CreateAsync(NewAddress);
+            if (!addressResult.IsSuccess)
             {
-                // Update the person in the list
+                SetError(addressResult.Error!);
+                return false;
+            }
+
+            var personResult = await _personService.AddAddressAsync(SelectedPerson.Id, addressResult.Value!.Id);
+            if (personResult.IsSuccess)
+            {
                 var index = People.FindIndex(p => p.Id == SelectedPerson.Id);
                 if (index >= 0)
                 {
-                    People[index] = updated;
+                    People[index] = personResult.Value!;
                     People = new List<PersonModel>(People);
                 }
-
-                // Reset form and refresh
                 NewAddress = new CreateAddressModel();
                 IsCreatingAddress = false;
-                await StartManageAddressesAsync(updated);
+                await StartManageAddressesAsync(personResult.Value!);
                 return true;
             }
-
-            SetError("Failed to add newly created address to person.");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating and adding address");
-            SetError("Failed to create address. Please try again.");
+            SetError(personResult.Error!);
             return false;
         }
         finally
